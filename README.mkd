@@ -1,0 +1,129 @@
+# HydraShield
+
+## Usage
+
+Mount the engine in your routes:
+
+```ruby
+# config/routes.rb
+Rails.application.routes.draw do
+
+  # Your routes ...
+
+  mount HydraShield::Engine => "/"
+end
+```
+
+In your controller, use the shield helper:
+
+```ruby
+# app/controllers/user_controller.rb
+class UserController < ApplicationController
+
+  def index
+    users = find_users
+    # You can explicitly indicate which shield should be used
+    shield users: users, with: UserCollectionShield
+  end
+
+  def show
+    user = find_user
+    # Or it can be inferred from the first object class name. User => UserShield
+    shield user: user
+  end
+end
+```
+
+Finally, define the shields:
+
+```ruby
+# app/shields/user_shield.rb
+class UserShield < HydraShield::ResourceShield
+
+  # All items you passed in to the shield helper (except `:with`) get set as
+  # instance variables. You'll probably want access to them directly.
+  attr_reader :user
+
+  # Set the required fields.
+  self.id    = -> { user_path(user) }
+  self.type  = "User"
+  self.label = "A user is a person or agent who can interact with the app"
+
+  # Declare the properties that should be exposed, their type, and a description.
+  # Type and description are used in the vocab.
+  property :login,     :string, "The username for the user", :required
+  property :full_name, :string, "The user's full name",      :required
+
+  property :last_login_at, :timestamp, "The last time the user was seen",  :readonly
+  property :active,        :boolean,   "Has the user logged in recently?", :readonly
+
+  # There's a shortcut if you want `created_at` and `deleted_at`:
+  include_timestamps
+
+  # All those properties have to be methods on the shield. The Forwardable module
+  # is automatically included for the simple cases:
+  delegate [:login, :full_name, :last_login_at, :created_at, :updated_at] => :user
+
+  # For the ones involving logic, just add a real method.
+  def active
+    last_login_at > 1.month.ago
+  end
+
+  # The operations we can perform on the resource
+  operation :retrieve_user,
+            method: "GET",
+            description: "Retrives the user",
+            returns: type,
+            status_codes: {
+              404: "The User wasn't found"
+            }
+
+  operation :update_user,
+            method: "PUT",
+            description: "Updates the user's attributes",
+            expects: type,
+            returns: type,
+            status_codes: {
+              404: "The User wasn't found"
+            }
+
+  link :account,
+       "The account of which the user is a member",
+       operations: [ AccountShield[:retrieve_account] ]
+
+  # `link`s are properties, too
+  def account
+    user_account_path(user)
+  end
+
+end
+```
+
+## TODOs
+
+ * Property types should be a schema.org type, or a object that can be expanded in the context:
+
+```
+{
+    "@context": {
+        "Event": "http://schema.org/Event",
+        "description": "http://schema.org/description",
+        "end_date": {
+            "@id": "http://schema.org/endDate",
+            "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+        },
+        "hydra": "http://www.w3.org/ns/hydra/core#",
+        "name": "http://schema.org/name",
+        "start_date": {
+            "@id": "http://schema.org/startDate",
+            "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+        },
+        "vocab": "http://www.markus-lanthaler.com/hydra/event-api/vocab#"
+    }
+}
+```
+
+
+
+
+
