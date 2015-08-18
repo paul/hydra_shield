@@ -7,7 +7,7 @@ module HydraShield::Helpers
                    raise ArgumentError, "No Shield found for #{primary_object.class.to_s}, please set one explicitly"
 
     shield = shield_klass.new(self, objects)
-    render json: shield.attributes
+    render({json: shield.attributes}.merge(objects.slice(:status)))
   end
 
   def collection_shield(objects)
