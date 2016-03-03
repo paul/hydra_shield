@@ -5,7 +5,7 @@ module HydraShield
   class ResourceShield
     extend Forwardable
 
-    class_attribute :type, :id, :label
+    class_attribute :type, :id, :label, :description
     class_attribute :properties, :operations
 
     module ClassMethods
@@ -35,22 +35,8 @@ module HydraShield
         property(:updated_at, :timestamp, "When the resource was updated")
       end
 
-      def description
-      end
-
       def supported_operations
-        operations.map do |op|
-          {
-            "@id" => op.id,
-            "@type" => "hydra:Operation",
-            "method" => op.method,
-            "label" => op.label,
-            "description" => op.description,
-            "expects" => op.expects,
-            "returns" => op.returns,
-            "statusCodes" => op.status_codes || []
-          }
-        end
+        operations
       end
 
       def supported_properties
@@ -88,10 +74,12 @@ module HydraShield
     extend ClassMethods
 
     def type
-      if self.class.type.is_a? Proc
-        instance_exec(&self.class.type)
-      else
-        self.class.type
+      if self.class.type
+        if self.class.type.is_a? Proc
+          instance_exec(&self.class.type)
+        else
+          self.class.type
+        end
       end
     end
 
@@ -99,14 +87,11 @@ module HydraShield
       instance_exec(&self.class.id)
     end
 
-    attr_reader :controller, :objects
+    attr_reader :controller, :object
 
-    def initialize(controller, objects)
+    def initialize(controller, object)
       @controller = controller
-      @objects = objects
-      objects.each do |name, value|
-        instance_variable_set :"@#{name}", value
-      end
+      @object = object
     end
 
     def properties
@@ -131,14 +116,17 @@ module HydraShield
       )
     end
 
-    def shield(objects)
-      shield_klass = objects.delete(:with) or
-                       const_get(primary_object.class.to_s + "Shield") or
-                       raise ArgumentError, "No Shield found for #{primary_object.class.to_s}, please set one explicitly"
+    def as_json(*a)
+      attributes.as_json(*a)
+    end
 
-      shield = shield_klass.new(controller, objects)
+    def shield(object, **options)
+      shield_klass = options.delete(:with) ||
+                       Object.const_get(object.class.to_s + "Shield")
 
-      shield.attributes
+      raise ArgumentError, "No Shield found for #{primary_object.class.to_s}, please set one explicitly" if shield_klass.nil?
+
+      shield_klass.new(controller, object)
     end
 
     def collection_shield(objects)
@@ -180,22 +168,7 @@ module HydraShield
       end
 
       def supported_operations
-        if @attrs && @attrs[:operations]
-          @attrs[:operations].map do |op|
-            {
-              "@id" => op.id,
-              "@type" => "hydra:Operation",
-              "method" => op.method,
-              "label" => op.label,
-              "description" => op.description,
-              "expects" => op.expects,
-              "returns" => op.returns,
-              "statusCodes" => op.status_codes || []
-            }
-          end
-        else
-          []
-        end
+        @attrs[:operations] || []
       end
     end
 

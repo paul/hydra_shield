@@ -89,10 +89,10 @@ describe Shield::ResourceShield do
     context "that are collections" do
       subject(:collection) { attributes[:widgets] }
 
-      it { should have_attribute "@id",      eq("/widgets")         }
+      it { should have_attribute "@id",      eq("/widgets")             }
       it { should have_attribute "@type",    eq("Collection")           }
       it { should have_attribute "@context", eq("/contexts/Collection") }
-      it { should have_attribute "member"    }
+      it { should have_attribute "member"                               }
 
     end
 

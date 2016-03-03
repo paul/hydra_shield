@@ -1,7 +1,5 @@
 module HydraShield
-  class ShieldController < ApplicationController
-
-    skip_before_action :require_authentication
+  class HydraController < ApplicationController
 
     def entry_point
       entry_point = HydraShield::EntryPoint.new( { } )
@@ -20,7 +18,7 @@ module HydraShield
 
     def vocab
       vocab = HydraShield::Vocab.new(HydraShield.shields)
-      shield vocab: vocab, with: HydraShield::VocabShield
+      render json: shield(vocab, with: HydraShield::VocabShield)
     end
 
   end

@@ -1,5 +1,10 @@
-require "hydra_shield/engine"
-require "hydra_shield/railtie"
+
+require "active_support/core_ext/class/subclasses"
+
+if defined?(Rails)
+  require "hydra_shield/engine"
+  require "hydra_shield/railtie"
+end
 
 module HydraShield
   autoload :ResourceShield, "hydra_shield/resource_shield"
@@ -16,5 +21,10 @@ module HydraShield
   def self.shields
     ResourceShield.descendants.select { |s| s.descendants.empty? }
   end
+
+  def self.registered_shields
+    shields
+  end
+
 end
 

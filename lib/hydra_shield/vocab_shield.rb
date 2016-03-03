@@ -4,7 +4,7 @@ class HydraShield::VocabShield < HydraShield::ResourceShield
   self.id   = -> { vocab_path }
   self.type = "ApiDocumentation"
 
-  attr_reader :vocab
+  alias vocab object
 
   def context
     {
@@ -81,17 +81,33 @@ class HydraShield::VocabShield < HydraShield::ResourceShield
           }
         ]
       }
-    ] + @vocab.supported_classes.map do |klass|
+    ] + vocab.supported_classes.map do |klass|
       {
         "@id" => "vocab:#{klass.type}",
         "@type" => "hydra:Class",
         "subClassOf" => nil,
         "label" => klass.label,
         "description" => klass.description,
-        "supportedOperation" => klass.supported_operations,
+        "supportedOperation" => klass.supported_operations.map { |op| supported_operation(op) },
         "supportedProperty" => klass.supported_properties
       }
     end
+  end
+
+  def supported_operation(operation)
+    {
+      "@id"         => operation.id,
+      "@type"       => "hydra:Operation",
+      "method"      => operation.method,
+      "label"       => operation.label,
+      "description" => operation.description,
+      "expects"     => operation.expects,
+      "returns"     => operation.returns,
+      "statusCodes" => (operation.status_codes || []).map do |code, desc|
+        { "code" => code, "description" => desc }
+      end
+    }
+
   end
 
 

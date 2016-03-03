@@ -1,21 +1,37 @@
 module HydraShield::Helpers
 
-  def shield(objects)
-    primary_object = objects.values.first
-    shield_klass = objects.delete(:with) or
-                   const_get(primary_object.class.to_s + "Shield") or
-                   raise ArgumentError, "No Shield found for #{primary_object.class.to_s}, please set one explicitly"
-
-    shield = shield_klass.new(self, objects)
-    render({json: shield.attributes}.merge(objects.slice(:status)))
+  def shield(object, **options)
+    if object.is_a?(Enumerable) || object.is_a?(ActiveRecord::Relation) # not needed in rails >= 5.0
+      shield_collection(object, **options)
+    else
+      shield_klass = intuit_shield_class(object, **options)
+      shield_klass.new(self, object)
+    end
   end
 
-  def collection_shield(objects)
-    collection_name = objects.keys.first
-    item_name = collection_name.to_s.singularize.to_sym
-    objects = objects.merge(collection_name: collection_name, item_name: item_name)
-    shield = HydraShield::CollectionShield.new(self, objects)
-    render json: shield.attributes
+  def shield_collection(objects, **options)
+    collection_class = intuit_shield_class(objects, **options)
+    collection_class.new(self, objects)
+  end
+
+  def intuit_shield_class(object, **options)
+    if object.is_a?(Enumerable) || object.is_a?(ActiveRecord::Relation)
+      return options[:with_collection] if options.has_key?(:with_collection)
+
+      possible_class_name = (object.is_a?(ActiveRecord::Relation) ? object.model : object.first.class).to_s + "CollectionShield"
+      return Object.const_get(possible_class_name) if Object.const_defined?(possible_class_name)
+
+      HydraShield::CollectionShield
+    else
+      return options[:with] if options.has_key?(:with)
+
+      possible_class_name = object.class.to_s
+      return Object.const_get(possible_class_name) if Object.const_defined?(possible_class_name)
+
+      raise ArgumentError, "No shield found for #{object.class.to_s}, " +
+                           "please set one using the :with option " +
+                           "or define a #{possible_class_name}"
+    end
   end
 
 end
