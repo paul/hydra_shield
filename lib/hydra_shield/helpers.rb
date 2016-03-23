@@ -1,7 +1,7 @@
 module HydraShield::Helpers
 
   def shield(object, **options)
-    if object.is_a?(Enumerable) || object.is_a?(ActiveRecord::Relation) # not needed in rails >= 5.0
+    if object.respond_to?(:each)
       shield_collection(object, **options)
     else
       shield_klass = intuit_shield_class(object, **options)
@@ -15,10 +15,10 @@ module HydraShield::Helpers
   end
 
   def intuit_shield_class(object, **options)
-    if object.is_a?(Enumerable) || object.is_a?(ActiveRecord::Relation)
+    if object.respond_to?(:each)
       return options[:with_collection] if options.has_key?(:with_collection)
 
-      possible_class_name = (object.is_a?(ActiveRecord::Relation) ? object.model : object.first.class).to_s + "CollectionShield"
+      possible_class_name = (object.respond_to?(model) ? object.model : object.first.class).to_s + "CollectionShield"
       return Object.const_get(possible_class_name) if Object.const_defined?(possible_class_name)
 
       HydraShield::CollectionShield
